@@ -1,4 +1,5 @@
 from copy import deepcopy
+from logging import raiseExceptions
 from queue import PriorityQueue
 
 import numpy as np
@@ -27,6 +28,7 @@ class State:
 
     def exists_winner(self):
         """
+        check if there is a winner and return it in that case
         :return: <int> the id of the winning player or -1 if no winner yet
         """
         if self.p_positions[0][0] == 8:  # player 1 has won
@@ -44,37 +46,51 @@ class State:
                 return 3
         return -1
 
-    def can_move(self, from_p, to_p):
+    def through_wall(self, from_position, to_position):
         """
-        Check if the player can move to the from_p without taking into account other players
-        :param from_p: <tuple> the position the player wants to move from
-        :param to_p: <tuple> the position the player wants to move to
-        :return: <boolean> the player can move to the from_p
+        check if going from from_position to to_position through a wall
+        :param from_position: <(int, int)> the start position as (i, j)
+        :param to_position: <(int, int)> the end position as (i, j)
+        :return: <boolean> goes through the wall
+        """
+        if to_position[0] < from_position[0]:  # go to the north
+            if to_position in self.h_walls or (to_position[0], to_position[1] - 1) in self.h_walls:  # north wall ?
+                return True
+        elif to_position[1] > from_position[1]:  # go to the east
+            if from_position in self.v_walls or (from_position[0] - 1, from_position[1]) in self.v_walls:  # east wall ?
+                return True
+        elif to_position[0] > from_position[0]:  # go to the south
+            if from_position in self.h_walls or (from_position[0], from_position[1] - 1) in self.h_walls:  # south wall ?
+                return True
+        elif to_position[1] < from_position[1]:  # go to the west
+            if to_position in self.v_walls or (to_position[0] - 1, to_position[1]) in self.v_walls:  # west wall ?
+                return True
+        else:
+            raise RuntimeError()
+        return False
+
+    def can_move(self, from_position, to_position):
+        """
+        Check if the player can move to the from_position without taking into account other players
+        :param from_position: <(int, int)> the position the player wants to move from
+        :param to_position: <(int, int)> the position the player wants to move to
+        :return: <boolean> the player can move to the from_position
         """
         # assert not move in diagonal
-        if from_p[0] != to_p[0]:
-            assert from_p[1] == to_p[1]
+        if from_position[0] != to_position[0]:
+            assert from_position[1] == to_position[1]
         # assert move to an adjacent square
-        assert -1 <= from_p[0] - to_p[0] <= 1
-        assert -1 <= from_p[1] - to_p[1] <= 1
+        assert -1 <= from_position[0] - to_position[0] <= 1
+        assert -1 <= from_position[1] - to_position[1] <= 1
 
-        if 0 <= from_p[0] <= 8 and 0 <= from_p[1] <= 8 and 0 <= to_p[0] <= 8 and 0 <= to_p[1] <= 8:  # check in board
-            if to_p[0] < from_p[0]:  # go to the north
-                if to_p not in self.h_walls and (to_p[0], to_p[1]-1) not in self.h_walls:  # no north wall ?
-                    return True
-            if to_p[1] > from_p[1]:  # go to the east
-                if from_p not in self.v_walls and (from_p[0]-1, from_p[1]) not in self.v_walls:  # no east wall ?
-                    return True
-            if to_p[0] > from_p[0]:  # go to the south
-                if from_p not in self.h_walls and (from_p[0], from_p[1]-1) not in self.h_walls:  # no south wall ?
-                    return True
-            if to_p[1] < from_p[1]:  # go to the west
-                if to_p not in self.v_walls and (to_p[0]-1, to_p[1]) not in self.v_walls:  # no west wall ?
-                    return True
+        if 0 <= from_position[0] <= 8 and 0 <= from_position[1] <= 8 and 0 <= to_position[0] <= 8 and 0 <= to_position[1] <= 8:  # check in board
+            if not self.through_wall(from_position, to_position):  # check if move through a wall
+                return True
         return False
 
     def exists_solution(self):
         """
+        check each player can reach his goal
         :return: <boolean> each player can reach his goal
         """
         for i in range(self.n):
@@ -83,6 +99,12 @@ class State:
         return True
 
     def best_first_search(self, start, goal):
+        """
+        find the shortest path from start to goal
+        :param start: <(int, int)> the start position
+        :param goal: <(int, int)> (index, position) example: player 1 has to reach the line i = 8 then goals[0] = (0, 8), player 3 has to reach the line j = 0 then goals[2] = (1, 0)
+        :return: <boolean> it exists a path from start to goal
+        """
         # ----- Inner functions -------------------------
         def neighbors():
             neighbors = []
@@ -111,8 +133,9 @@ class State:
 
     def can_place(self, is_horizontal, position):
         """
+        check if the wall can be placed at the given position
         :param is_horizontal: <boolean> if wall to place is horizontal or vertical
-        :param position: <tuple> position of the wall as (i, j) corresponding to the square top left of the wall
+        :param position: <(int, int)> position of the wall as (i, j) corresponding to the square top left of the wall
         :return: <boolean> if the wall can be placed at the given position
         """
         assert 0 <= position[0] <= 7 and 0 <= position[1] <= 7  # assert in board
@@ -136,7 +159,6 @@ class State:
             self.v_walls.remove(position)
         return True
 
-
     def neighbors(self):
         """
         :return: <list<State>> list of possible neighbors
@@ -149,131 +171,47 @@ class State:
             :return: (State) state with the turn passes to the next player
             """
             state.turn = (state.turn + 1) % state.n
-            return state            
+            return state
 
-        def facing(facing_position):
+        def facing(current_position, concurrent_position, facing_position):
             """
             Handle facing move
-            :param facing_position: <(int, int)>
+            :param current_position: <(int, int)> player current position
+            :param concurrent_position: <(int, int)> position where the other player is
+            :param facing_position: <(int, int)> position where the player should go if he jumps over the other player going straight
             """
-            if facing_position[0] < current_position[0]:  # check if come from south
-                if self.can_move(facing_position, (facing_position[0]-1, facing_position[1])):  # can go to the north ?
-                    if (facing_position[0]-1, facing_position[1]) not in other_positions:  # not arrived on another player
+            if self.can_move(concurrent_position, facing_position):  # can just jump over the other
+                copy = deepcopy(self)
+                copy.p_positions[self.turn] = facing_position
+                copy = next_turn(copy)
+                neighbors.append(copy)
+            else:  # try to jump in diagonal
+                moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+                for move in moves:
+                    new_position = (concurrent_position[0] + move[0], concurrent_position[1] + move[1])
+                    if new_position != current_position and new_position != facing_position and self.can_move(concurrent_position, new_position):
                         copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0] - 1, facing_position[1])
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                else:
-                    if self.can_move(facing_position, (facing_position[0], facing_position[1] - 1)) \
-                            and (facing_position[0], facing_position[1] - 1) not in other_positions:  # can go to the west ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1] - 1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                    if self.can_move(facing_position, (facing_position[0], facing_position[1] + 1)) \
-                            and (facing_position[0], facing_position[1] + 1) not in other_positions:  # can go to the east ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1] + 1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-            elif facing_position[1] > current_position[1]:  # check if come from west
-                if self.can_move(facing_position, (facing_position[0], facing_position[1]+1)):  # can go to the east ?
-                    if (facing_position[0], facing_position[1]+1) not in other_positions:  # not arrived on another player
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1]+1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                else:
-                    if self.can_move(facing_position, (facing_position[0]-1, facing_position[1])) \
-                            and (facing_position[0]-1, facing_position[1]) not in other_positions:  # can go to the north ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0]-1, facing_position[1])
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                    if self.can_move(facing_position, (facing_position[0]+1, facing_position[1])) \
-                            and (facing_position[0]+1, facing_position[1]) not in other_positions:  # can go to the south ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0]+1, facing_position[1])
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-            elif facing_position[0] > current_position[0]:  # check if come from north
-                if self.can_move(facing_position, (facing_position[0]+1, facing_position[1])):  # can go to the south ?
-                    if (facing_position[0]+1, facing_position[1]) not in other_positions:  # not arrived on another player
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0]+1, facing_position[1])
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                else:
-                    if self.can_move(facing_position, (facing_position[0], facing_position[1]-1)) \
-                            and (facing_position[0], facing_position[1]-1) not in other_positions:  # can go to the west ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1]-1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                    if self.can_move(facing_position, (facing_position[0], facing_position[1]+1)) \
-                            and (facing_position[0], facing_position[1]+1) not in other_positions:  # can go to the east ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1]+1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-            elif facing_position[1] < current_position[1]:  # check if come from east
-                if self.can_move(facing_position, (facing_position[0], facing_position[1]-1)):  # can go to the west ?
-                    if (facing_position[0], facing_position[1]-1) not in other_positions:  # not arrived on another player
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0], facing_position[1]-1)
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                else:
-                    if self.can_move(facing_position, (facing_position[0]-1, facing_position[1])) \
-                            and (facing_position[0]-1, facing_position[1]) not in other_positions:  # can go to the north ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0]-1, facing_position[1])
-                        copy = next_turn(copy)
-                        neighbors.append(copy)
-                    if self.can_move(facing_position, (facing_position[0]+1, facing_position[1])) \
-                            and (facing_position[0]+1, facing_position[1]) not in other_positions:  # can go to the south ?
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = (facing_position[0]+1, facing_position[1])
+                        copy.p_positions[self.turn] = new_position
                         copy = next_turn(copy)
                         neighbors.append(copy)
         # ---------------------------------------------
         neighbors = []
         current_position = self.p_positions[self.turn]
         other_positions = [self.p_positions[p_id] for p_id in [i for i in range(self.n)] if p_id != self.turn]  # other players' positions
-
-        if self.can_move((current_position[0] - 1, current_position[1]), current_position):  # try to move player to the north
-            if (current_position[0] - 1, current_position[1]) in other_positions:  # handle facing
-                facing((current_position[0] - 1, current_position[1]))
-            else:
-                copy = deepcopy(self)
-                copy.p_positions[self.turn] = (current_position[0] - 1, current_position[1])
-                copy = next_turn(copy)
-                neighbors.append(copy)
-        if self.can_move((current_position[0], current_position[1]+1), current_position):  # try to move player to the east
-            if (current_position[0], current_position[1]+1) in other_positions:  # handle facing
-                facing((current_position[0], current_position[1]+1))
-            else:
-                copy = deepcopy(self)
-                copy.p_positions[self.turn] = (current_position[0], current_position[1]+1)
-                copy = next_turn(copy)
-                neighbors.append(copy)
-        if self.can_move((current_position[0]+1, current_position[1]), current_position):  # try to move player to the south
-            if (current_position[0]+1, current_position[1]) in other_positions:  # handle facing
-                facing((current_position[0]+1, current_position[1]))
-            else:
-                copy = deepcopy(self)
-                copy.p_positions[self.turn] = (current_position[0]+1, current_position[1])
-                copy = next_turn(copy)
-                neighbors.append(copy)
-        if self.can_move((current_position[0], current_position[1] - 1), current_position):  # try to move player to the west
-            if (current_position[0], current_position[1] - 1) in other_positions:  # handle facing
-                facing((current_position[0], current_position[1] - 1))
-            else:
-                copy = deepcopy(self)
-                copy.p_positions[self.turn] = (current_position[0], current_position[1] - 1)
-                copy = next_turn(copy)
-                neighbors.append(copy)
-
+        # moving
+        moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+        for move in moves:
+            new_position = current_position[0] + move[0], current_position[1] + move[1]
+            if self.can_move(current_position, new_position):
+                if new_position in other_positions:
+                    facing_position = new_position[0] + move[0], new_position[1] + move[1]
+                    facing(current_position, new_position, facing_position)
+                else:
+                    copy = deepcopy(self)
+                    copy.p_positions[self.turn] = (current_position[0] - 1, current_position[1])
+                    copy = next_turn(copy)
+                    neighbors.append(copy)
+        # placing wall
         if self.walls[self.turn] > 0:  # check if player has any walls left
             # try to place a horizontal wall
             for i in range(8):

@@ -8,8 +8,13 @@ class SmartPlayer:
         self.max_depth = max_depth
 
     def play(self, state):
-        pr = cProfile.Profile()
-        pr.enable()
+        """
+        play his turn
+        :param state: <State> the current state
+        :return: <State> the state after his turn
+        """
+        # pr = cProfile.Profile()
+        # pr.enable()
         best_move = None
         best_value = float("inf")
         if state.n == 2:
@@ -19,8 +24,8 @@ class SmartPlayer:
                 if move_value < best_value:
                     best_value = move_value
                     best_move = neighbor.state
-            pr.disable()
-            pr.print_stats(sort='cumtime')
+            # pr.disable()
+            # pr.print_stats(sort='cumtime')
             return best_move
 
     def alphabeta(self, node, alpha, beta, max_depth, minimize=True):
