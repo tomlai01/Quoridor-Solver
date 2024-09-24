@@ -1,12 +1,8 @@
-from queue import PriorityQueue
+from src.SmartPlayer import SmartPlayer
+from src.State import State
 
-q = PriorityQueue()
-
-q.put((2, 'B'))
-q.put((1, 'A'))
-q.put((3, 'C'))
-q.put((0, 'D'))
-
-while not q.empty():
-    print(q.get())
+state = State(2)
+node = SmartPlayer.Node(0, state)
+neighbors = node.get_neighbors()
+print(neighbors)
 

@@ -305,7 +305,7 @@ class State:
             and np.array_equal(self.h_walls, other.h_walls) and np.array_equal(self.v_walls, other.v_walls)
 
     def __str__(self):
-        s = f"players number: {self.n}\n" \
-            f"turn: {self.turn}\n" \
-            f"players' position: p.0: {self.p_positions[0]}, p.1: {self.p_positions[1]}, p.2: {self.p_positions.setdefault(2, 'nul')}, p.3: {self.p_positions.setdefault(3, 'nul')}"
+        s = f"players' position: p.0: {self.p_positions[0]}, p.1: {self.p_positions[1]}\n" \
+            f"horizontal walls: {self.h_walls}\n" \
+            f"vertical walls: {self.v_walls}\n"
         return s

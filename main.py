@@ -1,8 +1,9 @@
-
-class Node:
-
+from src.Game import Game
+from src.RandomPlayer import RandomPlayer
+from src.SmartPlayer import SmartPlayer
 
 if __name__ == '__main__':
-    print_hi('PyCharm')
+    game = Game([RandomPlayer(0), SmartPlayer(1)])
+    game.start()
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+
