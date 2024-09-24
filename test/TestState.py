@@ -18,12 +18,12 @@ class TestState(unittest.TestCase):
 
     def test_basic_neighbors_2(self):
         state = State.State(2)
-        neighbors = state.get_neighbors()
+        neighbors = state.neighbors()
         self.assertEqual(len(neighbors), 131)
         # wall is placed
         state = State.State(2)
         state.h_walls.add((0, 4))
-        neighbors = state.get_neighbors()
+        neighbors = state.neighbors()
         self.assertEqual(126, len(neighbors))
 
     def test_exist_winner_2(self):
@@ -137,29 +137,34 @@ class TestState(unittest.TestCase):
         self.state2.p_positions[0] = (1, 4)
         self.state2.p_positions[1] = (2, 4)
         # without wall
-        neighbors = self.state2.get_neighbors()
+        neighbors = self.state2.neighbors()
         positions = [neighbor.p_positions for neighbor in neighbors]
         self.assertTrue([(3, 4), (2, 4)] in positions)
         self.assertFalse([(2, 3), (2, 4)] in positions)
         self.assertFalse([(2, 5), (2, 4)] in positions)
         # with wall behind
         self.state2.h_walls.add((2,4))
-        neighbors = self.state2.get_neighbors()
+        neighbors = self.state2.neighbors()
         positions = [neighbor.p_positions for neighbor in neighbors]
         self.assertFalse([(3, 4), (2, 4)] in positions)
         self.assertTrue([(2, 3), (2, 4)] in positions)
         self.assertTrue([(2, 5), (2, 4)] in positions)
         # add wall on a side
         self.state2.v_walls.add((1, 4))
-        neighbors = self.state2.get_neighbors()
+        neighbors = self.state2.neighbors()
         positions = [neighbor.p_positions for neighbor in neighbors]
         self.assertFalse([(2, 5), (2, 4)] in positions)
         self.assertTrue([(2, 3), (2, 4)] in positions)
         self.state2.v_walls.add((2, 3))
-        neighbors = self.state2.get_neighbors()
+        neighbors = self.state2.neighbors()
         positions = [neighbor.p_positions for neighbor in neighbors]
         self.assertFalse([(2, 5), (2, 4)] in positions)
         self.assertFalse([(2, 3), (2, 4)] in positions)
+
+    def test_neighbors(self):
+        neighbors = self.state2.neighbors()
+        for neighbor in neighbors:
+            self.assertEqual(1, neighbor.turn)
 
     def test_hash(self):
         state1 = State.State(2)

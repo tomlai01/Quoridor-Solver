@@ -30,13 +30,17 @@ class State:
         :return: <int> the id of the winning player or -1 if no winner yet
         """
         if self.p_positions[0][0] == 8:  # player 1 has won
+            self.winner = 0
             return 0
         elif self.p_positions[1][0] == 0:  # player 2 has won
+            self.winner = 1
             return 1
         if self.n == 4:
             if self.p_positions[2][1] == 8:  # player 3 has won
+                self.winner = 2
                 return 2
             elif self.p_positions[3][1] == 0:  # player 4 has won
+                self.winner = 3
                 return 3
         return -1
 
@@ -133,7 +137,7 @@ class State:
         return True
 
 
-    def get_neighbors(self):
+    def neighbors(self):
         """
         :return: <list<State>> list of possible neighbors
         """
@@ -144,10 +148,7 @@ class State:
             :param state: (State)
             :return: (State) state with the turn passes to the next player
             """
-            if state.turn < state.n - 1:
-                state.turn += 1
-            else:
-                state.turn = 0
+            state.turn = (state.turn + 1) % state.n
             return state            
 
         def facing(facing_position):
@@ -237,8 +238,6 @@ class State:
                         neighbors.append(copy)
         # ---------------------------------------------
         neighbors = []
-        if self.exists_winner() != -1:  # handle victory
-            return neighbors
         current_position = self.p_positions[self.turn]
         other_positions = [self.p_positions[p_id] for p_id in [i for i in range(self.n)] if p_id != self.turn]  # other players' positions
 
@@ -300,9 +299,11 @@ class State:
         return hash((tuple(self.p_positions), frozenset(self.h_walls), frozenset(self.v_walls), self.turn))
 
     def __eq__(self, other):
-        assert isinstance(other, State)
-        return self.n == other.n and self.turn == other.turn and self.p_positions == other.p_positions \
-            and np.array_equal(self.h_walls, other.h_walls) and np.array_equal(self.v_walls, other.v_walls)
+        if isinstance(other, State):
+            return self.n == other.n and self.turn == other.turn and self.h_walls == other.h_walls \
+                    and self.v_walls == other.v_walls and self.p_positions == other.p_positions \
+                    and self.walls == other.walls and self.goals == other.goals
+        return False
 
     def __str__(self):
         s = f"players' position: p.0: {self.p_positions[0]}, p.1: {self.p_positions[1]}\n" \

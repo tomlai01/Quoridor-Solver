@@ -6,5 +6,5 @@ class RandomPlayer:
         self.id = player_id
 
     def play(self, state):
-        neighbors = state.get_neighbors()
+        neighbors = state.neighbors()
         return random.choice(neighbors)
