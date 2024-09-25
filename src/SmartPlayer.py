@@ -1,4 +1,6 @@
 import cProfile
+from queue import PriorityQueue
+
 
 class SmartPlayer:
 
@@ -74,7 +76,7 @@ class SmartPlayer:
             h = abs(self.state.p_positions[self.id][self.goal[0]] - self.goal[1])
             for o_id in self.other_ids:
                 o_goal = self.state.goals[o_id]
-                h += abs(self.state.p_positions[o_id][o_goal[0]] - o_goal[1])
+                h += abs(self.state.p_positions[o_id][o_goal[0]] - o_goal[1]) + 1
             return h
 
         def neighbors(self):

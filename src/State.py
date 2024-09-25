@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import copy
 from queue import PriorityQueue
 from heapdict import heapdict
 
@@ -188,19 +188,19 @@ class State:
             :param facing_position: <(int, int)> position where the player should go if he jumps over the other player going straight
             """
             if self.can_move(concurrent_position, facing_position):  # can just jump over the other
-                copy = deepcopy(self)
-                copy.p_positions[self.turn] = facing_position
-                copy.turn = (self.turn + 1) % self.n
-                neighbors.append(copy)
+                new_state = copy(self)
+                new_state.p_positions[self.turn] = facing_position
+                new_state.turn = (self.turn + 1) % self.n
+                neighbors.append(new_state)
             else:  # try to jump in diagonal
                 moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
                 for move in moves:
                     new_position = (concurrent_position[0] + move[0], concurrent_position[1] + move[1])
                     if new_position != current_position and new_position != facing_position and self.can_move(concurrent_position, new_position):
-                        copy = deepcopy(self)
-                        copy.p_positions[self.turn] = new_position
-                        copy.turn = (self.turn + 1) % self.n
-                        neighbors.append(copy)
+                        new_state = copy(self)
+                        new_state.p_positions[self.turn] = new_position
+                        new_state.turn = (self.turn + 1) % self.n
+                        neighbors.append(new_state)
         # ---------------------------------------------
         neighbors = []
         current_position = self.p_positions[self.turn]
@@ -214,10 +214,10 @@ class State:
                     facing_position = new_position[0] + move[0], new_position[1] + move[1]
                     facing(current_position, new_position, facing_position)
                 else:
-                    copy = deepcopy(self)
-                    copy.p_positions[self.turn] = (new_position)
-                    copy.turn = (self.turn + 1) % self.n
-                    neighbors.append(copy)
+                    new_state = copy(self)
+                    new_state.p_positions[self.turn] = new_position
+                    new_state.turn = (self.turn + 1) % self.n
+                    neighbors.append(new_state)
         # placing wall
         previous_solutions = {i:[] for i in range(self.n)}
         if self.walls[self.turn] > 0:  # check if player has any walls left
@@ -225,21 +225,32 @@ class State:
             for i in range(8):
                 for j in range(8):
                     if self.can_place(True, (i, j), previous_solutions):
-                        copy = deepcopy(self)
-                        copy.h_walls.add((i, j))
-                        copy.walls[self.turn] -= 1
-                        copy.turn = (self.turn + 1) % self.n
-                        neighbors.append(copy)
+                        new_state = copy(self)
+                        new_state.h_walls.add((i, j))
+                        new_state.walls[self.turn] -= 1
+                        new_state.turn = (self.turn + 1) % self.n
+                        neighbors.append(new_state)
             # try to place a vertical wall
             for i in range(8):
                 for j in range(8):
                     if self.can_place(False, (i, j), previous_solutions):
-                        copy = deepcopy(self)
-                        copy.v_walls.add((i, j))
-                        copy.walls[self.turn] -= 1
-                        copy.turn = (self.turn + 1) % self.n
-                        neighbors.append(copy)
+                        new_state = copy(self)
+                        new_state.v_walls.add((i, j))
+                        new_state.walls[self.turn] -= 1
+                        new_state.turn = (self.turn + 1) % self.n
+                        neighbors.append(new_state)
         return neighbors
+
+    def __copy__(self):
+        copy = State(self.n)
+        copy.turn = self.turn
+        for i in range(self.n):
+            copy.p_positions[i] = self.p_positions[i]
+        copy.walls = self.walls.copy()
+        copy.h_walls = self.h_walls.copy()
+        copy.v_walls = self.v_walls.copy()
+        return copy
+
 
     def __hash__(self):
         return hash((tuple(self.p_positions), frozenset(self.h_walls), frozenset(self.v_walls), self.turn))
