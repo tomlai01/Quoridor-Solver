@@ -1,8 +1,6 @@
 from copy import deepcopy
-from logging import raiseExceptions
 from queue import PriorityQueue
-
-import numpy as np
+from heapdict import heapdict
 
 class State:
 
@@ -88,14 +86,25 @@ class State:
                 return True
         return False
 
-    def exists_solution(self):
+    def check_solution(self, solution):
+        for i in range(len(solution)-1):
+            if not self.can_move(solution[i], solution[i+1]):
+                return False
+        return True
+
+    def exists_solution(self, previous_solutions):
         """
         check each player can reach his goal
         :return: <boolean> each player can reach his goal
         """
         for i in range(self.n):
-            if not self.best_first_search(self.p_positions[i], self.goals[i]):
-                return False
+            if len(previous_solutions[i]) > 0 and self.check_solution(previous_solutions[i]):
+                continue
+            else:
+                solution = self.best_first_search(self.p_positions[i], self.goals[i])
+                if len(solution) < 0:
+                    return False
+                previous_solutions[i] = solution
         return True
 
     def best_first_search(self, start, goal):
@@ -118,6 +127,7 @@ class State:
                 neighbors.append((position[0], position[1]-1))
             return neighbors
         # ----------------------------------------------
+        came_from = {}
         visited = set()
         queue = PriorityQueue()
         queue.put((abs(goal[1] - start[goal[0]]), start))
@@ -125,13 +135,19 @@ class State:
             priority, position = queue.get()
             for neighbor in neighbors():
                 if neighbor not in visited:
-                    if neighbor[goal[0]] == goal[1]:
-                        return True
                     visited.add(neighbor)
+                    came_from[neighbor] = position
+                    if neighbor[goal[0]] == goal[1]:
+                        path = []
+                        while neighbor != start:
+                            path.append(neighbor)
+                            neighbor = came_from[neighbor]
+                        path.append(start)
+                        return path[::-1]
                     queue.put((abs(goal[1] - neighbor[goal[0]]), neighbor))
-        return False
+        return []
 
-    def can_place(self, is_horizontal, position):
+    def can_place(self, is_horizontal, position, previous_solutions):
         """
         check if the wall can be placed at the given position
         :param is_horizontal: <boolean> if wall to place is horizontal or vertical
@@ -144,7 +160,7 @@ class State:
                     or (position[0], position[1]+1) in self.h_walls or position in self.v_walls:
                 return False
             self.h_walls.add(position)
-            if not self.exists_solution():
+            if not self.exists_solution(previous_solutions):
                 self.h_walls.remove(position)
                 return False
             self.h_walls.remove(position)
@@ -153,7 +169,7 @@ class State:
                     or (position[0]+1, position[1]) in self.v_walls or position in self.h_walls:
                 return False
             self.v_walls.add(position)
-            if not self.exists_solution():
+            if not self.exists_solution(previous_solutions):
                 self.v_walls.remove(position)
                 return False
             self.v_walls.remove(position)
@@ -164,15 +180,6 @@ class State:
         :return: <list<State>> list of possible neighbors
         """
         # ----- Inner functions -------------------------
-        def next_turn(state):
-            """
-            Pass the state to next round
-            :param state: (State)
-            :return: (State) state with the turn passes to the next player
-            """
-            state.turn = (state.turn + 1) % state.n
-            return state
-
         def facing(current_position, concurrent_position, facing_position):
             """
             Handle facing move
@@ -183,7 +190,7 @@ class State:
             if self.can_move(concurrent_position, facing_position):  # can just jump over the other
                 copy = deepcopy(self)
                 copy.p_positions[self.turn] = facing_position
-                copy = next_turn(copy)
+                copy.turn = (self.turn + 1) % self.n
                 neighbors.append(copy)
             else:  # try to jump in diagonal
                 moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
@@ -192,7 +199,7 @@ class State:
                     if new_position != current_position and new_position != facing_position and self.can_move(concurrent_position, new_position):
                         copy = deepcopy(self)
                         copy.p_positions[self.turn] = new_position
-                        copy = next_turn(copy)
+                        copy.turn = (self.turn + 1) % self.n
                         neighbors.append(copy)
         # ---------------------------------------------
         neighbors = []
@@ -208,28 +215,29 @@ class State:
                     facing(current_position, new_position, facing_position)
                 else:
                     copy = deepcopy(self)
-                    copy.p_positions[self.turn] = (current_position[0] - 1, current_position[1])
-                    copy = next_turn(copy)
+                    copy.p_positions[self.turn] = (new_position)
+                    copy.turn = (self.turn + 1) % self.n
                     neighbors.append(copy)
         # placing wall
+        previous_solutions = {i:[] for i in range(self.n)}
         if self.walls[self.turn] > 0:  # check if player has any walls left
             # try to place a horizontal wall
             for i in range(8):
                 for j in range(8):
-                    if self.can_place(True, (i, j)):
+                    if self.can_place(True, (i, j), previous_solutions):
                         copy = deepcopy(self)
                         copy.h_walls.add((i, j))
                         copy.walls[self.turn] -= 1
-                        copy = next_turn(copy)
+                        copy.turn = (self.turn + 1) % self.n
                         neighbors.append(copy)
             # try to place a vertical wall
             for i in range(8):
                 for j in range(8):
-                    if self.can_place(False, (i, j)):
+                    if self.can_place(False, (i, j), previous_solutions):
                         copy = deepcopy(self)
                         copy.v_walls.add((i, j))
                         copy.walls[self.turn] -= 1
-                        copy = next_turn(copy)
+                        copy.turn = (self.turn + 1) % self.n
                         neighbors.append(copy)
         return neighbors
 
