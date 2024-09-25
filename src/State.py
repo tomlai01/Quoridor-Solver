@@ -102,7 +102,7 @@ class State:
                 continue
             else:
                 solution = self.best_first_search(self.p_positions[i], self.goals[i])
-                if len(solution) < 0:
+                if len(solution) == 0:
                     return False
                 previous_solutions[i] = solution
         return True
@@ -174,11 +174,8 @@ class State:
                 return False
             self.v_walls.remove(position)
         return True
-
-    def neighbors(self):
-        """
-        :return: <list<State>> list of possible neighbors
-        """
+    
+    def possible_moves(self):
         # ----- Inner functions -------------------------
         def facing(current_position, concurrent_position, facing_position):
             """
@@ -191,21 +188,22 @@ class State:
                 new_state = copy(self)
                 new_state.p_positions[self.turn] = facing_position
                 new_state.turn = (self.turn + 1) % self.n
-                neighbors.append(new_state)
+                possible_moves.append(new_state)
             else:  # try to jump in diagonal
                 moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
                 for move in moves:
                     new_position = (concurrent_position[0] + move[0], concurrent_position[1] + move[1])
-                    if new_position != current_position and new_position != facing_position and self.can_move(concurrent_position, new_position):
+                    if new_position != current_position and new_position != facing_position and self.can_move(
+                            concurrent_position, new_position):
                         new_state = copy(self)
                         new_state.p_positions[self.turn] = new_position
                         new_state.turn = (self.turn + 1) % self.n
-                        neighbors.append(new_state)
+                        possible_moves.append(new_state)
+
         # ---------------------------------------------
-        neighbors = []
+        possible_moves = []
         current_position = self.p_positions[self.turn]
-        other_positions = [self.p_positions[p_id] for p_id in [i for i in range(self.n)] if p_id != self.turn]  # other players' positions
-        # moving
+        other_positions = [self.p_positions[p_id] for p_id in [i for i in range(self.n)]  if p_id != self.turn]  # other players' positions
         moves = [(-1, 0), (0, -1), (0, 1), (1, 0)]
         for move in moves:
             new_position = current_position[0] + move[0], current_position[1] + move[1]
@@ -217,7 +215,14 @@ class State:
                     new_state = copy(self)
                     new_state.p_positions[self.turn] = new_position
                     new_state.turn = (self.turn + 1) % self.n
-                    neighbors.append(new_state)
+                    possible_moves.append(new_state)
+        return possible_moves
+
+    def neighbors(self):
+        """
+        :return: <list<State>> list of possible neighbors
+        """
+        neighbors = self.possible_moves()
         # placing wall
         previous_solutions = {i:[] for i in range(self.n)}
         if self.walls[self.turn] > 0:  # check if player has any walls left
